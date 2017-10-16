@@ -45,6 +45,11 @@ public class BpNode {
      */
     List<BpNode> children;
 
+    /**
+     * 节点关键字的最大值
+     */
+    int maxLength = 16;
+
     public BpNode(boolean isLeaf) {
         this.isLeaf = isLeaf;
         if (!isLeaf) {
@@ -82,6 +87,77 @@ public class BpNode {
             }
         }
         return null;
+    }
+
+    public void insert(Tuple key, BpTree tree) {
+        if (isLeaf) {
+            if (!isLeafToSplit()) {
+                // 叶节点无需分裂
+                insertInLeaf(key);
+            } else {
+                //需要分裂为左右两个节点
+                BpNode left = new BpNode(true);
+                BpNode right = new BpNode(true);
+                if (previous != null) {
+                    left.previous = previous;
+                    previous.next = left;
+                }
+                if (next != null) {
+                    right.next = next;
+                    next.previous = right;
+                }
+                if (previous == null) {
+                    tree.head = left;
+                }
+                left.next = right;
+                right.previous = left;
+                // for GC
+                previous = null;
+                next = null;
+                //插入后再分裂
+                insertInLeaf(key);
+                int leftSize = entries.size() / 2;
+                int rightSize = entries.size() - leftSize;
+
+            }
+        }
+    }
+
+    /**
+     * 叶子节点是否需要分裂
+     */
+    private boolean isLeafToSplit() {
+        if (isLeaf) {
+            if (entries.size() >= maxLength) {
+                return true;
+            }
+            return false;
+        } else {
+            throw new UnsupportedOperationException("the node is not leaf.");
+        }
+    }
+
+    /**
+     * 插入到当前叶子节点中
+     */
+    private void insertInLeaf(Tuple key) {
+        if (entries.size() == 0) {
+            entries.add(key);
+            return;
+        }
+        //遍历插入
+        for (int i = 0; i < entries.size(); i++) {
+            if (entries.get(i).compare(key) == 0) {
+                // 如果该键值已存在,则不插入
+                return;
+            } else if (entries.get(i).compare(key) > 0) {
+                entries.add(i, key);
+                return;
+            }
+        }
+        // 插入到末尾
+        entries.add(entries.size(), key);
+        return;
     }
 
 
