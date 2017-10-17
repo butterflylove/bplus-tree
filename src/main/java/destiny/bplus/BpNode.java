@@ -216,7 +216,14 @@ public class BpNode {
                         isFound = true;
                     }
                 } else {
-                    // 如果当前关键书不够,并且前节点有足够的关键字,从前节点借
+                    // 如果当前关键字不够,并且前节点有足够的关键字,从前节点借
+                    if (leafCanBorrow(previous)) {
+
+                    } else if (leafCanBorrow(next)) {
+                        // 从后兄弟节点借
+                    } else {
+                        // 合并叶子节点
+                    }
                 }
             }
         } else {
@@ -241,6 +248,32 @@ public class BpNode {
             }
         }
         return isFound;
+    }
+
+    /**
+     * 兄弟叶节点是否能够借出
+     */
+    private boolean leafCanBorrow(BpNode node) {
+        if (node != null) {
+            int min = getUpper(maxLength - 1, 2);
+            if (node.entries.size() > min && node.parent == parent) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+
+    /**
+     * 上取整
+     */
+    private int getUpper(int x, int y) {
+        int remainder = x % y;
+        if (remainder == 0) {
+            return x / y;
+        } else {
+            return x / y + 1;
+        }
     }
 
     /**
