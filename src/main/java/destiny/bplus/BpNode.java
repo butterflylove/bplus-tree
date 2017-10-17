@@ -161,6 +161,36 @@ public class BpNode {
                     parent.updateNode(tree);
                     // for GC
                     parent = null;
+                } else {
+                    // 是根节点
+                    isRoot = false;
+                    BpNode rootNode = new BpNode(false, true);
+                    tree.root = rootNode;
+                    left.parent = rootNode;
+                    right.parent = rootNode;
+                    rootNode.children.add(left);
+                    rootNode.children.add(right);
+                    // for GC
+                    entries = null;
+                    children = null;
+                    // 根节点插入关键字
+                    rootNode.insertInParent(right.entries.get(0));
+                }
+            }
+        } else {
+            // 如果不是叶子节点,沿着指针乡下搜索
+            if (key.compare(entries.get(0)) < 0) {
+                children.get(0).insert(key, tree);
+            } else if (key.compare(entries.get(entries.size() - 1)) >= 0) {
+                children.get(children.size() - 1).insert(key, tree);
+            } else {
+                // TODO 二分查找
+                // 遍历比较
+                for (int i = 0; i < (entries.size() - 1); i++) {
+                    if (key.compare(entries.get(i)) >= 0 && key.compare(entries.get(i + 1)) < 0) {
+                        children.get(i + 1).insert(key, tree);
+                        break;
+                    }
                 }
             }
         }
