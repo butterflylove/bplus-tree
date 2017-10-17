@@ -196,6 +196,107 @@ public class BpNode {
         }
     }
 
+    public boolean remove(Tuple key, BpTree tree) {
+        boolean isFound = false;
+        if (isLeaf) {
+            // 如果是叶子节点
+            if (!contains(key)) {
+                // 不包含关键字
+                return false;
+            }
+            // 是 叶子节点 且是 根节点,直接删除
+            if (isRoot) {
+                if (removeInLeaf(key)) {
+                    isFound = true;
+                }
+            } else {
+                if (canRemoveDirectInLeaf()) {
+                    // 可以在叶节点中直接删除
+                    if (removeInLeaf(key)) {
+                        isFound = true;
+                    }
+                } else {
+                    // 如果当前关键书不够,并且前节点有足够的关键字,从前节点借
+                }
+            }
+        } else {
+            // 非叶子节点,继续向下搜索
+            if (key.compare(entries.get(0)) < 0) {
+                if (children.get(0).remove(key, tree)) {
+                    isFound = true;
+                }
+            } else if (key.compare(entries.get(entries.size() - 1)) >= 0) {
+                if (children.get(children.size() - 1).remove(key, tree)) {
+                    isFound = true;
+                }
+            } else {
+                for (int i = 0; i < (entries.size() - 1); i++) {
+                    if (key.compare(entries.get(i)) >= 0 && key.compare(entries.get(i + 1)) < 0) {
+                        if (children.get(i + 1).remove(key, tree)) {
+                            isFound = true;
+                        }
+                    }
+                    break;
+                }
+            }
+        }
+        return isFound;
+    }
+
+    /**
+     * 关键字是否可以直接在叶节点中删除
+     */
+    private boolean canRemoveDirectInLeaf() {
+        if (isLeaf) {
+            int maxKey = maxLength - 1;
+            int remainder = maxKey % 2;
+            int half;
+            if (remainder == 0) {
+                half = maxKey / 2;
+            } else {
+                half = maxKey / 2 + 1;
+            }
+            if ((entries.size() - 1) < half) {
+                return false;
+            } else {
+                return true;
+            }
+        } else {
+            throw new UnsupportedOperationException("it isn't leaf node.");
+        }
+    }
+
+    /**
+     * 直接在叶子节点中删除,不改变树结构
+     */
+    private boolean removeInLeaf(Tuple key) {
+        int index = -1;
+        boolean isFound = false;
+        for (int i = 0; i < entries.size(); i++) {
+            if (key.compare(entries.get(i)) == 0) {
+                index  = i;
+                isFound = true;
+                break;
+            }
+        }
+        if (index != -1) {
+            entries.remove(index);
+        }
+        return isFound;
+    }
+
+    /**
+     * 判断当前节点是否包含关键字
+     */
+    private boolean contains(Tuple key) {
+        for (Tuple tuple : entries) {
+            if (key.compare(tuple) == 0) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     /**
      * 父节点插入关键字后,检查是否需要分裂
      */
