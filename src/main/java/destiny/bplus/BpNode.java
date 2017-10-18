@@ -218,11 +218,71 @@ public class BpNode {
                 } else {
                     // 如果当前关键字不够,并且前节点有足够的关键字,从前节点借
                     if (leafCanBorrow(previous)) {
-
+                        if (removeInLeaf(key)) {
+                            borrowLeafPrevious();
+                            isFound = true;
+                        }
                     } else if (leafCanBorrow(next)) {
+                        if (removeInLeaf(key)) {
+                            borrowLeafNext();
+                            isFound = true;
+                        }
                         // 从后兄弟节点借
                     } else {
-                        // 合并叶子节点
+                        // 合并叶子节点, 先合并后删除
+                        BpNode tmpParent = this.parent;
+                        if (leafCanMerge(previous)) {
+                            // 和前叶子节点合并
+                            mergeToPreLeaf(this.previous, this);
+                            if (previous.removeInLeaf(key)) {
+                                isFound = true;
+                            }
+                            // 删除在父节点中的key
+                            int parentKeyIdx = getMiddleKeyIdxInParent(this);
+                            parent.entries.remove(parentKeyIdx);
+                            // 删除在父节点中的指针
+                            parent.children.remove(this);
+                            // for GC
+                            parent = null;
+                            entries = null;
+                            // 更新 叶节点链表
+                            if (this.next != null) {
+                                BpNode tmp = this;
+                                tmp.previous.next = tmp.next;
+                                tmp.next.previous = tmp.previous;
+                                tmp.previous = null;
+                                tmp.next = null;
+                            } else {
+                                this.previous.next = null;
+                                this.previous = null;
+                            }
+                        } else if (leafCanMerge(next)) {
+                            // 和后叶子节点合并
+                            mergeToPreLeaf(this, this.next);
+                            if (removeInLeaf(key)) {
+                                isFound = true;
+                            }
+                            // 删除在父节点中的key
+                            int parentKeyIdx = getMiddleKeyIdxInParent(this.next);
+                            parent.entries.remove(parentKeyIdx);
+                            // 删除在父节点中的指针
+                            parent.children.remove(this.next);
+                            // for GC
+                            next.parent = null;
+                            next.entries = null;
+                            // 更新 叶节点链表
+                            if (this.next.next != null) {
+                                BpNode tmp = this.next;
+                                this.next = tmp.next;
+                                tmp.next.previous = this;
+                                tmp.previous = null;
+                                tmp.next = null;
+                            } else {
+                                this.next.previous = null;
+                                this.next = null;
+                            }
+                        }
+                        tmpParent.updateRemove(tree);
                     }
                 }
             }
@@ -251,12 +311,240 @@ public class BpNode {
     }
 
     /**
+     * 中间节点删除后的更新操作
+     */
+    private void updateRemove(BpTree tree) {
+        int half = getUpper(maxLength, 2);
+        if (children.size() < half || children.size() < 2) {
+            if (isRoot) {
+                if (children.size() >= 2) {
+                    return;
+                } else {
+                    // 如果根节点只有一个指针,则删除 根节点,让其孩子节点作为根节点
+                    BpNode rootNode = children.get(0);
+                    tree.root =rootNode;
+                    rootNode.isRoot = true;
+                    rootNode.parent = null;
+                    // for GC
+                    this.entries = null;
+                    this.children = null;
+                }
+            } else {
+                // 计算前后兄弟节点
+                int curIdx = parent.children.indexOf(this);
+                int preIdx = curIdx - 1;
+                int nextIdx = curIdx + 1;
+                BpNode preNode = null;
+                BpNode nextNode = null;
+                if (preIdx >= 0) {
+                    preNode = parent.children.get(preIdx);
+                }
+                if (nextIdx < parent.children.size()) {
+                    nextNode = parent.children.get(nextIdx);
+                }
+                if (middleNodeCanBorrow(preNode)) {
+                    // 从前节点借
+                    borrowMiddleNodePrevious(preNode);
+                } else if (middleNodeCanBorrow(nextNode)) {
+                    // 从后继节点借
+                    borrowMiddleNodeNext(nextNode);
+                } else {
+                    // 和兄弟节点合并
+                    BpNode tmpParent = this.parent;
+                    if (middleNodeCanMerge(preNode)) {
+                        // 与前节点合并
+                        mergeToPreMiddleNode(preNode, this);
+                        int parentKeyIdx = getMiddleKeyIdxInParent(this);
+                        this.parent.entries.remove(parentKeyIdx);
+                        this.parent.children.remove(parentKeyIdx + 1);
+                        // for GC
+                        this.parent = null;
+                        this.entries = null;
+                        this.children = null;
+                    } else if (middleNodeCanMerge(nextNode)) {
+                        mergeToPreMiddleNode(this, nextNode);
+                        int parentKeyIdx = getMiddleKeyIdxInParent(nextNode);
+                        this.parent.entries.remove(parentKeyIdx);
+                        this.parent.children.remove(parentKeyIdx + 1);
+                        // for GC
+                        nextNode.parent = null;
+                        nextNode.entries = null;
+                        nextNode.children = null;
+                    }
+                    tmpParent.updateRemove(tree);
+                }
+            }
+        }
+    }
+
+    /**
+     * 从前兄弟节点中借
+     */
+    private void borrowMiddleNodePrevious(BpNode preNode) {
+        /**
+         *        20
+         * 3  7        30
+         * ---------------------
+         *        7
+         *    3        20   30
+         */
+        int parentKeyIdx = getMiddleKeyIdxInParent(this);
+        // 父节点中下沉的 key
+        Tuple downKey = parent.entries.get(parentKeyIdx);
+        this.entries.add(0, downKey);
+        // 从父节点中删除 key
+        parent.entries.remove(parentKeyIdx);
+
+        int preSize = preNode.entries.size();
+        // 前节点中提升到父节点的key
+        Tuple upKey = preNode.entries.get(preSize - 1);
+        parent.entries.add(parentKeyIdx, upKey);
+        // 删除提升节点
+        preNode.entries.remove(preSize - 1);
+        // 前节点的最后一个指针后移到当前节点
+        int preChildSize = preNode.children.size();
+        BpNode borrowPoint = preNode.children.get(preChildSize - 1);
+        this.children.add(0 , borrowPoint);
+        preNode.children.remove(preChildSize - 1);
+        borrowPoint.parent = this;
+    }
+
+    /**
+     * 从后继兄弟节点中借
+     */
+    private void borrowMiddleNodeNext(BpNode nextNode) {
+        /**
+         *        20
+         *   7        30   40
+         * ---------------------
+         *            30
+         *   7   20        40
+         */
+        int parentKeyIdx = getMiddleKeyIdxInParent(nextNode);
+        Tuple downKey = parent.entries.get(parentKeyIdx);
+        this.entries.add(downKey);
+        this.parent.entries.remove(parentKeyIdx);
+
+        Tuple upKey = nextNode.entries.get(0);
+        this.parent.entries.add(parentKeyIdx, upKey);
+        nextNode.entries.remove(0);
+        // 后继节点的第一个指针移到当前节点最后面
+        BpNode borrowPoint = nextNode.children.get(0);
+        this.children.add(borrowPoint);
+        nextNode.children.remove(0);
+    }
+
+    /**
+     * 将后一个节点中的关键字 合并到 前节点中
+     */
+    private void mergeToPreLeaf(BpNode first, BpNode sec) {
+        for (int i = 0; i < sec.entries.size(); i++) {
+            first.entries.add(sec.entries.get(i));
+        }
+    }
+
+    /**
+     * 将后一个中间节点的关键字和指针复制到 前一个中间节点中
+     */
+    private void mergeToPreMiddleNode(BpNode first, BpNode sec) {
+        int parentKeyIdx = getMiddleKeyIdxInParent(sec);
+        // 将父节点关键字下沉
+        first.entries.add(first.parent.entries.get(parentKeyIdx));
+
+        for (int i = 0; i < sec.entries.size(); i++) {
+            first.entries.add(sec.entries.get(i));
+        }
+        // sec的指针复制
+        for (int i = 0; i < sec.children.size(); i++) {
+            // 变更父亲节点
+            sec.children.get(i).parent = first;
+            first.children.add(sec.children.get(i));
+        }
+    }
+
+    /**
+     * 从前兄弟叶子节点 借
+     */
+    private void borrowLeafPrevious() {
+        int size = previous.entries.size();
+        Tuple borrowKey = previous.entries.get(size - 1);
+        previous.entries.remove(size - 1);
+        entries.add(0, borrowKey);
+        // 获取 当前节点指针 和 前节点指针 之间的 关键字 在父节点中的位置
+        int parentEntryIdx = getMiddleKeyIdxInParent(this);
+        parent.entries.remove(parentEntryIdx);
+        parent.entries.add(parentEntryIdx, borrowKey);
+    }
+
+    /**
+     * 从后兄弟叶子节点 借
+     */
+    private void borrowLeafNext() {
+        Tuple borrowKey = next.entries.get(0);
+        next.entries.remove(0);
+        entries.add(borrowKey);
+        // 获取 当前节点指针 和 后节点指针 之间的 关键字 在父节点中的位置
+        int parentEntryIdx = getMiddleKeyIdxInParent(this.next);
+        parent.entries.remove(parentEntryIdx);
+        // 将后叶子节点 第1个关键字(从0开始计数)提升到父节点中
+        // 由于前面已经删除第0个关键字,所以这里添加的还是0
+        parent.entries.add(parentEntryIdx, next.entries.get(0));
+    }
+
+    /**
+     * 获取 当前节点指针 和 前节点指针 之间的 关键字 在父节点中的位置
+     */
+    private int getMiddleKeyIdxInParent(BpNode node) {
+        int index = parent.children.indexOf(node);
+        return index - 1;
+    }
+
+    /**
      * 兄弟叶节点是否能够借出
      */
     private boolean leafCanBorrow(BpNode node) {
         if (node != null) {
             int min = getUpper(maxLength - 1, 2);
             if (node.entries.size() > min && node.parent == parent) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * 兄弟中间节点是否可以借
+     */
+    private boolean middleNodeCanBorrow(BpNode node) {
+        if (node != null) {
+            int min = getUpper(maxLength, 2);
+            if (node.children.size() > min && node.parent == parent) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * 叶子节点是否可以合并
+     */
+    private boolean leafCanMerge(BpNode node) {
+        if (node != null) {
+            if ((entries.size() + node.entries.size() - 1) <= (maxLength - 1)
+                    && parent == node.parent) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * 中间节点是否可以合并
+     */
+    private boolean middleNodeCanMerge(BpNode node) {
+        if (node != null) {
+            if ((entries.size() + node.entries.size() + 1) <= (maxLength - 1)
+                    && parent == node.parent) {
                 return true;
             }
         }
