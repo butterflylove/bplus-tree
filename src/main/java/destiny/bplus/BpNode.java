@@ -34,7 +34,6 @@ public class BpNode {
      */
     BpNode next;
 
-
     /**
      * 节点的关键字列表
      */
@@ -56,6 +55,14 @@ public class BpNode {
 
     public void setParent(BpNode parent) {
         this.parent = parent;
+    }
+
+    public BpNode getNext() {
+        return next;
+    }
+
+    public List<Tuple> getEntries() {
+        return entries;
     }
 
     public BpNode(boolean isLeaf) {
@@ -689,7 +696,7 @@ public class BpNode {
      */
     private boolean isLeafToSplit() {
         if (isLeaf) {
-            if (children.size() >= maxLength) {
+            if (entries.size() >= (maxLength - 1)) {
                 return true;
             }
             return false;

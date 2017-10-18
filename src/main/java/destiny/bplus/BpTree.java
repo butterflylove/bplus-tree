@@ -16,19 +16,24 @@ public class BpTree implements Tree {
      */
     BpNode head;
 
+    public BpTree() {
+        root = new BpNode(true, true);
+        head = root;
+    }
 
-    @Override
+    public BpNode getHead() {
+        return head;
+    }
+
     public Tuple find(Tuple key) {
-        return null;
+        return root.get(key);
     }
 
-    @Override
     public void insert(Tuple key) {
-
+        root.insert(key, this);
     }
 
-    @Override
     public boolean remove(Tuple key) {
-        return false;
+        return root.remove(key, this);
     }
 }
