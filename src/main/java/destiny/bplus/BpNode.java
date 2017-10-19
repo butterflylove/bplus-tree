@@ -47,7 +47,7 @@ public class BpNode {
     /**
      * 节点指针的最大值
      */
-    int maxLength = 17;
+    final int maxLength = 17;
 
     public BpNode getParent() {
         return parent;
@@ -110,36 +110,31 @@ public class BpNode {
                 // 叶节点无需分裂
                 insertInLeaf(key);
             } else {
+                System.out.println("叶节点分裂");
                 //需要分裂为左右两个节点
                 BpNode left = new BpNode(true);
                 BpNode right = new BpNode(true);
                 if (previous != null) {
                     left.previous = previous;
                     previous.next = left;
+                } else {
+                    tree.head = left;
                 }
                 if (next != null) {
                     right.next = next;
                     next.previous = right;
-                }
-                if (previous == null) {
-                    tree.head = left;
                 }
                 left.next = right;
                 right.previous = left;
                 // for GC
                 previous = null;
                 next = null;
-                //插入后再分裂
+                // 插入后再分裂
                 insertInLeaf(key);
 
-                int remainder = entries.size() % 2;
-                int leftSize;
-                if (remainder == 0) {
-                    leftSize = entries.size() / 2;
-                } else {
-                    leftSize = entries.size() / 2 + 1;
-                }
+                int leftSize = getUpper(entries.size(), 2);
                 int rightSize = entries.size() - leftSize;
+                System.out.printf("leaf key left:%d  right:%d\n", leftSize, rightSize);
                 // 左右节点拷贝
                 for (int i = 0; i < leftSize; i++) {
                     left.entries.add(entries.get(i));
@@ -148,12 +143,18 @@ public class BpNode {
                     right.entries.add(entries.get(leftSize + i));
                 }
                 // 不是根节点
-                if (parent != null) {
+                if (!isRoot) {
                     // 调整父子节点关系
                     // 寻找当前节点在父节点的位置
+                    System.out.println("parent children is null:" + (parent.children == null));
+
+
                     int index = parent.children.indexOf(this);
+//                    System.out.println("parent children size:" + parent.children.size());
+//                    System.out.println("index:" + index);
+
                     // 删除当前指针
-                    parent.children.remove(index);
+                    parent.children.remove(this);
                     left.setParent(parent);
                     right.setParent(parent);
                     // 将分裂后节点的指针添加到父节点
@@ -185,7 +186,7 @@ public class BpNode {
                 }
             }
         } else {
-            // 如果不是叶子节点,沿着指针乡下搜索
+            // 如果不是叶子节点,沿着指针向下搜索
             if (key.compare(entries.get(0)) < 0) {
                 children.get(0).insert(key, tree);
             } else if (key.compare(entries.get(entries.size() - 1)) >= 0) {
@@ -563,11 +564,20 @@ public class BpNode {
      * 上取整
      */
     private int getUpper(int x, int y) {
-        int remainder = x % y;
-        if (remainder == 0) {
-            return x / y;
+        if (y == 2) {
+            int remainder = x & 1;
+            if (remainder == 0) {
+                return x >> 1;
+            } else {
+                return (x >> 1) + 1;
+            }
         } else {
-            return x / y + 1;
+            int remainder = x % y;
+            if (remainder == 0) {
+                return x / y;
+            } else {
+                return x / y + 1;
+            }
         }
     }
 
@@ -626,21 +636,22 @@ public class BpNode {
     }
 
     /**
-     * 父节点插入关键字后,检查是否需要分裂
+     * 非叶节点插入关键字后,检查是否需要分裂
      */
     private void updateNode(BpTree tree) {
         // 需要分裂
         if (isNodeToSplit()) {
+            System.out.println("中间节点分裂");
             BpNode left = new BpNode(false);
             BpNode right = new BpNode(false);
-            int remainder = entries.size() % 2;
-            int pLeftSize;
-            if (remainder == 0) {
-                pLeftSize = entries.size() / 2;
-            } else {
-                pLeftSize = entries.size() / 2 + 1;
-            }
-            int pRightSize = entries.size() - pLeftSize;
+
+            int pLeftSize = getUpper(children.size(), 2);
+            int pRightSize = children.size() - pLeftSize;   //fix bug
+
+            // 提升到父节点的关键字
+            Tuple keyToParent = entries.get(pLeftSize - 1);
+
+            System.out.printf("middle node p left:%d  right:%d\n", pLeftSize, pRightSize);
             // 复制左边的关键字
             for (int i = 0; i < (pLeftSize - 1); i++) {
                 left.entries.add(entries.get(i));
@@ -652,7 +663,7 @@ public class BpNode {
             }
 
             // 复制右边关键字,右边的第一个关键字提升到父节点
-            for (int i = 1;  i < pRightSize; i++) {
+            for (int i = 0;  i < (pRightSize - 1); i++) {
                 right.entries.add(entries.get(pLeftSize + i));
             }
             // 复制右边的指针
@@ -660,8 +671,9 @@ public class BpNode {
                 right.children.add(children.get(pLeftSize + i));
                 children.get(i).setParent(right);
             }
-            Tuple keyToParent = entries.get(pLeftSize);
-            if (parent != null) {
+
+            if (!isRoot) {
+                System.out.println("current is root:" + isRoot);
                 int index = parent.children.indexOf(this);
                 parent.children.remove(index);
                 left.parent = parent;
@@ -669,13 +681,17 @@ public class BpNode {
                 parent.children.add(index, left);
                 parent.children.add(index + 1, right);
                 // 插入关键字
-                parent.insertInParent(keyToParent);
+//                parent.insertInParent(keyToParent);
+                parent.entries.add(index, keyToParent);
                 parent.updateNode(tree);
+                entries.clear();
+                children.clear();
                 entries = null;
                 children = null;
                 parent = null;
             } else {
                 // 是根节点
+                System.out.println("current is root:" + isRoot);
                 isRoot = false;
                 BpNode rootNode = new BpNode(false, true);
                 tree.root = rootNode;
@@ -683,16 +699,20 @@ public class BpNode {
                 right.parent = rootNode;
                 rootNode.children.add(left);
                 rootNode.children.add(right);
+                children.clear();
+                entries.clear();
                 children = null;
                 entries = null;
                 // 插入关键字
-                rootNode.insertInParent(keyToParent);
+//                rootNode.insertInParent(keyToParent);
+                rootNode.entries.add(keyToParent);
             }
         }
     }
 
     /**
-     * 叶子节点是否需要分裂
+     * 叶子节点是否需要分裂,
+     * 用于插入前进行判断
      */
     private boolean isLeafToSplit() {
         if (isLeaf) {
@@ -706,7 +726,8 @@ public class BpNode {
     }
 
     /**
-     * 中间节点是否需要分裂
+     * 中间节点是否需要分裂,
+     * 已经插入指针和关键字
      */
     private boolean isNodeToSplit() {
         // 由于是先插入关键字,所以不需要[=]
@@ -753,9 +774,115 @@ public class BpNode {
             }
         }
         // 插入到末尾
-        entries.add(entries.size(), key);
-        return;
+        entries.add(key);
     }
 
+    /**
+     * 验证节点是否满足 point数 = key数 + 1
+     */
+    private boolean checkKeyPointRelation() {
+        if (!isLeaf) {
+            if ((entries.size() + 1) == children.size()) {
+                return true;
+            } else {
+                System.out.println("不满足 point数 = key数 + 1");
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /**
+     * 检查关键字是否有序
+     */
+    private boolean keyIsOrder() {
+        for (int i = 0; i < (entries.size() - 1); i++) {
+            if (entries.get(i).compare(entries.get(i + 1)) >= 0) {
+                System.out.println("节点关键字 不 有序");
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /**
+     * 验证节点是否符合B+树 定义
+     */
+    boolean validate() {
+        if (checkKeyPointRelation()) {
+            // 检查关键字是否有序
+            if (keyIsOrder()) {
+                if (isLeaf) {
+                    if (isRoot) {
+                        // 是页节点 且是 根节点
+                        return true;
+                    } else {
+                        // 是叶子节点 不是 根节点
+                        if (entries.size() < getUpper(maxLength - 1, 2) || entries.size() > (maxLength - 1)) {
+                            System.out.println("叶节点key数 不合法");
+                            return false;
+                        }
+                    }
+                    return true;
+                } else {
+                    // 非叶子节点
+                    if (isRoot) {
+                        if (children.size() < 2) {
+                            System.out.printf("根节点指针数 不合法, children:%d\n", children.size());
+                            return false;
+                        }
+                    } else {
+                        if (children.size() < getUpper(maxLength, 2) || children.size() > maxLength) {
+                            System.out.printf("非叶节点指针数 不合法, children:%d\n", children.size());
+                            System.out.printf("entry:%d\n", entries.size());
+                            return false;
+                        }
+                    }
+                    for (BpNode node : children) {
+                        if (node.validate()) {
+                            // 子节点符合B+树定义
+                            int pIdx = children.indexOf(node);
+                            Tuple minChildKey = node.entries.get(0);
+                            Tuple maxChildKey = node.entries.get(node.entries.size() - 1);
+                            if (pIdx == 0) {
+                                // 第一个指针
+                                boolean isValid = maxChildKey.compare(entries.get(0)) < 0;
+                                if (!isValid) {
+                                    System.out.println("子节点与父节点不满足大小关系");
+                                    return false;
+                                }
+                            } else if (pIdx == (children.size() - 1)) {
+                                // 最后一个指针
+                                boolean isValid = minChildKey.compare(entries.get(entries.size() - 1)) >= 0;
+                                if (!isValid) {
+                                    System.out.println("子节点与父节点不满足大小关系");
+                                    return false;
+                                }
+                            } else {
+                                Tuple preKey = entries.get(pIdx - 1);
+                                Tuple nextKey = entries.get(pIdx);
+                                boolean isValid = minChildKey.compare(preKey) >= 0
+                                        && maxChildKey.compare(nextKey) < 0;
+                                if (!isValid) {
+                                    System.out.println("子节点与父节点不满足大小关系");
+                                    return false;
+                                }
+                            }
+                        } else {
+                            // 子节点违反B+树定义
+                            System.out.println("子节点违反B+树定义");
+                            return false;
+                        }
+                    }
+                    return true;
+                }
+            } else {
+                // 关键字不有序
+                return false;
+            }
+        } else {
+            return false;
+        }
+    }
 
 }
