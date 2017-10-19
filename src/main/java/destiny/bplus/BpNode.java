@@ -47,7 +47,7 @@ public class BpNode {
     /**
      * 节点指针的最大值
      */
-    final int maxLength = 17;
+    final int maxLength = 5;
 
     public BpNode getParent() {
         return parent;
@@ -63,6 +63,10 @@ public class BpNode {
 
     public List<Tuple> getEntries() {
         return entries;
+    }
+
+    public List<BpNode> getChildren() {
+        return children;
     }
 
     public BpNode(boolean isLeaf) {
@@ -108,9 +112,10 @@ public class BpNode {
         if (isLeaf) {
             if (!isLeafToSplit()) {
                 // 叶节点无需分裂
+                System.out.println("直接插入叶节点");
                 insertInLeaf(key);
             } else {
-                System.out.println("叶节点分裂");
+                System.out.println("插入叶节点,且叶节点分裂");
                 //需要分裂为左右两个节点
                 BpNode left = new BpNode(true);
                 BpNode right = new BpNode(true);
@@ -148,7 +153,6 @@ public class BpNode {
                     // 寻找当前节点在父节点的位置
                     System.out.println("parent children is null:" + (parent.children == null));
 
-
                     int index = parent.children.indexOf(this);
 //                    System.out.println("parent children size:" + parent.children.size());
 //                    System.out.println("index:" + index);
@@ -166,11 +170,13 @@ public class BpNode {
 
                     // 父节点[非叶子节点]中插入关键字
                     parent.insertInParent(right.entries.get(0));
+                    System.out.println("父节点插入key");
                     parent.updateNode(tree);
                     // for GC
                     parent = null;
                 } else {
                     // 是根节点
+                    System.out.println("生成新的根节点");
                     isRoot = false;
                     BpNode rootNode = new BpNode(false, true);
                     tree.root = rootNode;
@@ -187,13 +193,19 @@ public class BpNode {
             }
         } else {
             // 如果不是叶子节点,沿着指针向下搜索
+            if (isRoot) {
+                System.out.println("(1)跟节点,向下搜索");
+            }
             if (key.compare(entries.get(0)) < 0) {
+                System.out.println("中间节点,向下搜索");
                 children.get(0).insert(key, tree);
             } else if (key.compare(entries.get(entries.size() - 1)) >= 0) {
+                System.out.println("中间节点,向下搜索");
                 children.get(children.size() - 1).insert(key, tree);
             } else {
                 // TODO 二分查找
                 // 遍历比较
+                System.out.println("中间节点,向下搜索");
                 for (int i = 0; i < (entries.size() - 1); i++) {
                     if (key.compare(entries.get(i)) >= 0 && key.compare(entries.get(i + 1)) < 0) {
                         children.get(i + 1).insert(key, tree);
@@ -641,7 +653,7 @@ public class BpNode {
     private void updateNode(BpTree tree) {
         // 需要分裂
         if (isNodeToSplit()) {
-            System.out.println("中间节点分裂");
+            System.out.println("非叶节点插入关键字后,需要分裂");
             BpNode left = new BpNode(false);
             BpNode right = new BpNode(false);
 
@@ -674,6 +686,7 @@ public class BpNode {
 
             if (!isRoot) {
                 System.out.println("current is root:" + isRoot);
+                System.out.println("非叶节点的父节点插入key");
                 int index = parent.children.indexOf(this);
                 parent.children.remove(index);
                 left.parent = parent;
@@ -692,6 +705,7 @@ public class BpNode {
             } else {
                 // 是根节点
                 System.out.println("current is root:" + isRoot);
+                System.out.println("parent null:" + (parent == null));
                 isRoot = false;
                 BpNode rootNode = new BpNode(false, true);
                 tree.root = rootNode;
@@ -797,7 +811,7 @@ public class BpNode {
      */
     private boolean keyIsOrder() {
         for (int i = 0; i < (entries.size() - 1); i++) {
-            if (entries.get(i).compare(entries.get(i + 1)) >= 0) {
+            if (entries.get(i).compare(entries.get(i + 1)) > 0) {
                 System.out.println("节点关键字 不 有序");
                 return false;
             }
@@ -822,10 +836,15 @@ public class BpNode {
                             System.out.println("叶节点key数 不合法");
                             return false;
                         }
+                        if (parent == null) {
+                            System.out.println("叶子节点的父节点的指针为空");
+                            return false;
+                        }
                     }
                     return true;
                 } else {
                     // 非叶子节点
+                    // 先检查指针数是否符合
                     if (isRoot) {
                         if (children.size() < 2) {
                             System.out.printf("根节点指针数 不合法, children:%d\n", children.size());
@@ -836,6 +855,12 @@ public class BpNode {
                             System.out.printf("非叶节点指针数 不合法, children:%d\n", children.size());
                             System.out.printf("entry:%d\n", entries.size());
                             return false;
+                        }
+                        for (BpNode node : children) {
+                            if (node.parent == null) {
+                                System.out.println("中间节点的父指针为空");
+                                return false;
+                            }
                         }
                     }
                     for (BpNode node : children) {
