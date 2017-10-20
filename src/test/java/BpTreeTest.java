@@ -15,9 +15,10 @@ public class BpTreeTest {
     @Test
     public void testRandom() {
         BpTree tree = new BpTree();
-        int n = 5000;
+        int n = 100000;
         Random random = new Random();
-        for (int i = 0; i < n; i++) {
+        int i;
+        for (i = 0; i < n; i++) {
             int x = random.nextInt(n);
             Tuple tuple = createTuple(x);
             tree.insert(tuple);
@@ -26,17 +27,16 @@ public class BpTreeTest {
                 break;
             }
         }
-//        boolean isValid = tree.validate();
-//        System.out.println("isValid:" + isValid);
+        System.out.println(i);
     }
 
     @Test
     public void test1() {
         BpTree bpTree = new BpTree();
-        for (int i = 1; i <= 16; i++) {
+        for (int i = 1; i <= 20; i++) {
             bpTree.insert(createTuple(i));
         }
-        bpTree.insert(createTuple(17));
+        bpTree.insert(createTuple(21));
         printLink(bpTree.getHead());
         BpNode root = bpTree.getRoot();
         printNode(root.getChildren().get(0));

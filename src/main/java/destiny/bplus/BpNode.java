@@ -671,7 +671,7 @@ public class BpNode {
             // 复制左边的指针
             for (int i = 0; i < pLeftSize; i++) {
                 left.children.add(children.get(i));
-                children.get(i).setParent(left);
+                left.children.get(i).setParent(left);
             }
 
             // 复制右边关键字,右边的第一个关键字提升到父节点
@@ -681,7 +681,7 @@ public class BpNode {
             // 复制右边的指针
             for (int i = 0; i < pRightSize; i++) {
                 right.children.add(children.get(pLeftSize + i));
-                children.get(i).setParent(right);
+                right.children.get(i).setParent(right);     // fix index bug
             }
 
             if (!isRoot) {
