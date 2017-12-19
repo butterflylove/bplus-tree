@@ -35,8 +35,8 @@ public class BooleanValue extends Value {
 
     @Override
     public int compare(Value value) {
-        // TODO: 17/10/15
-        return 0;
+        boolean target = ((BooleanValue) value).getBoolean();
+        return (b == target) ? 0 : (b ? 1 : -1);
     }
 
     @Override

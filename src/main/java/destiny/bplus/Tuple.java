@@ -4,6 +4,7 @@ import destiny.bplus.value.Value;
 
 /**
  * 元组
+ *
  * @author zhangtianlong
  */
 public class Tuple {
@@ -33,6 +34,9 @@ public class Tuple {
         return sum;
     }
 
+    /**
+     * 联合索引比较的时候,先比较第一个索引值,若相等则再比较下一个索引值,依次类推
+     */
     public int compare(Tuple tuple) {
         int min = values.length < tuple.values.length ? values.length : tuple.values.length;
         for (int i = 0; i < min; i++) {
@@ -42,9 +46,8 @@ public class Tuple {
             }
             return comp;
         }
-        // TODO 前缀完全相同,根据长度比较
-        return 0;
+        int res = values.length - tuple.values.length;
+        return (res == 0) ? 0 : (res > 1 ? 1 : -1);
     }
-
 
 }

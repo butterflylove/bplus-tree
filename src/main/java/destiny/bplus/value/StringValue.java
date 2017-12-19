@@ -35,11 +35,20 @@ public class StringValue extends Value {
 
     @Override
     public int compare(Value value) {
-        return 0;
+        String target = ((StringValue) value).getString();
+        int result = s.compareTo(target);
+        if (result > 0) {
+            return 1;
+        } else if (result < 0) {
+            return -1;
+        } else {
+            return 0;
+        }
     }
 
     @Override
     public String toString() {
         return s;
     }
+
 }

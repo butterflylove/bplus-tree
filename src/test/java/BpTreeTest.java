@@ -2,7 +2,6 @@ import destiny.bplus.BpNode;
 import destiny.bplus.BpTree;
 import destiny.bplus.Tuple;
 import destiny.bplus.value.IntValue;
-import destiny.bplus.value.StringValue;
 import destiny.bplus.value.Value;
 import org.junit.Test;
 import java.util.Random;
